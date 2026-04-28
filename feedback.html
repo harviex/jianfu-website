@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>情况反映平台 — 整治形式主义为基层减负</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+
+.container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 24px; }
+.header h1 { font-size: 24px; margin-bottom: 8px; }
+.header p { font-size: 14px; opacity: 0.9; }
+
+/* Form Card */
+.form-card { background: #fff; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 20px; }
+.form-card h2 { font-size: 18px; margin-bottom: 20px; color: #e74c3c; }
+
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #555; }
+.form-group select,
+.form-group input,
+.form-group textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; transition: border-color .2s; }
+.form-group select:focus,
+.form-group input:focus,
+.form-group textarea:focus { border-color: #e74c3c; }
+.form-group textarea { min-height: 150px; resize: vertical; }
+
+/* Buttons */
+.btn { padding: 12px 32px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: background .2s; }
+.btn-primary { background: #e74c3c; color: #fff; }
+.btn-primary:hover { background: #c0392b; }
+.btn-secondary { background: #3498db; color: #fff; text-decoration: none; display: inline-block; }
+.btn-secondary:hover { background: #2980b9; }
+
+/* Message */
+.message { padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; display: none; }
+.message.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.message.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+/* Admin Link */
+.admin-link { text-align: center; margin-top: 20px; }
+.admin-link a { color: #666; text-decoration: none; font-size: 14px; }
+.admin-link a:hover { color: #e74c3c; }
+
+/* Back Link */
+.back-link { margin-bottom: 20px; }
+.back-link a { color: #666; text-decoration: none; font-size: 14px; }
+.back-link a:hover { color: #e74c3c; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="back-link">
+        <a href="/">← 返回通报数据库</a>
+    </div>
+
+    <div class="header">
+        <h1>📋 情况反映平台</h1>
+        <p>反映形式主义、官僚主义等增加基层负担的问题</p>
+    </div>
+
+    <div class="message" id="message"></div>
+
+    <div class="form-card">
+        <h2>提交情况反映</h2>
+        <form id="feedbackForm">
+            <div class="form-group">
+                <label for="city">* 选择市：</label>
+                <select id="city" name="city" required onchange="updateDistricts()">
+                    <option value="">请选择市...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="district">* 选择县/区：</label>
+                <select id="district" name="district" required>
+                    <option value="">请先选择市...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="unit">单位名称：</label>
+                <input type="text" id="unit" name="unit" placeholder="选填，如：XX县XX局">
+            </div>
+
+            <div class="form-group">
+                <label for="description">* 反映内容：</label>
+                <textarea id="description" name="description" placeholder="请详细描述增加基层负担的有关情况..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">提交反映</button>
+        </form>
+    </div>
+
+    <div class="admin-link">
+        <a href="/admin.html">🔧 管理后台入口</a>
+    </div>
+</div>
+
+<script>
+// 福建省市县区数据
+const regions = {
+    "福州市": ["鼓楼区", "台江区", "仓山区", "晋安区", "马尾区", "长乐区", "福清市", "闽侯县", "连江县", "罗源县", "闽清县", "永泰县"],
+    "厦门市": ["思明区", "海沧区", "湖里区", "集美区", "同安区", "翔安区"],
+    "漳州市": ["芗城区", "龙文区", "龙海区", "漳浦县", "云霄县", "诏安县", "东山县", "平和县", "南靖县", "长泰区", "华安县"],
+    "泉州市": ["鲤城区", "丰泽区", "洛江区", "泉港区", "石狮市", "晋江市", "南安市", "惠安县", "安溪县", "永春县", "德化县", "金门县"],
+    "三明市": ["三元区", "永安市", "明溪县", "清流县", "宁化县", "大田县", "尤溪县", "沙县区", "将乐县", "泰宁县", "建宁县"],
+    "莆田市": ["城厢区", "涵江区", "荔城区", "秀屿区", "仙游县"],
+    "南平市": ["延平区", "建阳区", "邵武市", "武夷山市", "建瓯市", "顺昌县", "浦城县", "光泽县", "松溪县", "政和县"],
+    "龙岩市": ["新罗区", "永定区", "上杭县", "武平县", "长汀县", "连城县", "漳平市"],
+    "宁德市": ["蕉城区", "福安市", "福鼎市", "霞浦县", "古田县", "屏南县", "寿宁县", "周宁县", "柘荣县"],
+    "平潭综合实验区": ["平潭县"]
+};
+
+// 初始化市下拉菜单
+function initCities() {
+    const citySelect = document.getElementById('city');
+    for (const city in regions) {
+        const option = document.createElement('option');
+        option.value = city;
+        option.textContent = city;
+        citySelect.appendChild(option);
+    }
+}
+
+// 更新县区下拉菜单
+function updateDistricts() {
+    const citySelect = document.getElementById('city');
+    const districtSelect = document.getElementById('district');
+    const selectedCity = citySelect.value;
+    
+    districtSelect.innerHTML = '<option value="">请选择县/区...</option>';
+    
+    if (selectedCity && regions[selectedCity]) {
+        regions[selectedCity].forEach(district => {
+            const option = document.createElement('option');
+            option.value = district;
+            option.textContent = district;
+            districtSelect.appendChild(option);
+        });
+    }
+}
+
+// 提交表单
+document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        city: document.getElementById('city').value,
+        district: document.getElementById('district').value,
+        unit: document.getElementById('unit').value,
+        description: document.getElementById('description').value
+    };
+    
+    if (!formData.city || !formData.district || !formData.description) {
+        showMessage('请填写所有必填项（市、县/区、反映内容）', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/feedback/submit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('提交成功！感谢您的反映，我们会尽快处理。', 'success');
+            document.getElementById('feedbackForm').reset();
+            updateDistricts();
+        } else {
+            showMessage('提交失败：' + (result.error || '未知错误'), 'error');
+        }
+    } catch (err) {
+        showMessage('提交失败：网络错误，请稍后重试', 'error');
+    }
+});
+
+// 显示消息
+function showMessage(text, type) {
+    const msgDiv = document.getElementById('message');
+    msgDiv.textContent = text;
+    msgDiv.className = 'message ' + type;
+    msgDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        msgDiv.style.display = 'none';
+    }, 5000);
+}
+
+// 初始化
+initCities();
+</script>
+
+</body>
+</html>

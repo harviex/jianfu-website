@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 — 情况反映平台</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 24px; }
+.header h1 { font-size: 24px; margin-bottom: 8px; }
+.header-actions { margin-top: 12px; }
+.btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+
+/* Stats */
+.stats { display: flex; gap: 16px; margin-bottom: 24px; }
+.stat-card { background: #fff; padding: 16px 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); flex: 1; }
+.stat-card .num { font-size: 28px; font-weight: bold; color: #e74c3c; }
+.stat-card .label { font-size: 13px; color: #666; margin-top: 4px; }
+
+/* Filters */
+.filters { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 12px; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.filters label { font-size: 14px; font-weight: bold; }
+.filters select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+
+/* Table */
+.table-container { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th { background: #f8f9fa; padding: 12px; text-align: left; font-size: 14px; color: #555; border-bottom: 2px solid #eee; }
+td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+tr:hover { background: #f8f9fa; }
+
+/* Status Badges */
+.status { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-approved { background: #d4edda; color: #155724; }
+.status-rejected { background: #f8d7da; color: #721c24; }
+
+/* Actions */
+.actions { display: flex; gap: 8px; }
+.btn-approve { background: #28a745; color: #fff; }
+.btn-approve:hover { background: #218838; }
+.btn-reject { background: #dc3545; color: #fff; }
+.btn-reject:hover { background: #c82333; }
+.btn-delete { background: #6c757d; color: #fff; }
+.btn-delete:hover { background: #5a6268; }
+
+/* Modal */
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.5); z-index: 1000; }
+.modal-content { background: #fff; max-width: 500px; margin: 100px auto; padding: 24px; border-radius: 12px; }
+.modal h3 { margin-bottom: 16px; }
+.modal textarea { width: 100%; min-height: 100px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+
+/* Back Link */
+.back-link { margin-bottom: 20px; }
+.back-link a { color: #666; text-decoration: none; font-size: 14px; }
+.back-link a:hover { color: #e74c3c; }
+
+/* Pagination */
+.pagination { display: flex; justify-content: center; gap: 8px; padding: 20px; }
+.page-btn { padding: 8px 12px; border: 1px solid #ddd; background: #fff; border-radius: 6px; cursor: pointer; }
+.page-btn.active { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="back-link">
+        <a href="/feedback.html">← 返回情况反映平台</a>
+    </div>
+
+    <div class="header">
+        <h1>🔧 管理后台</h1>
+        <div class="header-actions">
+            <a href="/" class="btn btn-secondary" style="background:#fff;color:#e74c3c;">返回通报数据库</a>
+        </div>
+    </div>
+
+    <div class="stats" id="stats">
+        <div class="stat-card">
+            <div class="num" id="totalCount">0</div>
+            <div class="label">总反映数</div>
+        </div>
+        <div class="stat-card">
+            <div class="num" id="pendingCount">0</div>
+            <div class="label">待审核</div>
+        </div>
+        <div class="stat-card">
+            <div class="num" id="approvedCount">0</div>
+            <div class="label">已通过</div>
+        </div>
+        <div class="stat-card">
+            <div class="num" id="rejectedCount">0</div>
+            <div class="label">已拒绝</div>
+        </div>
+    </div>
+
+    <div class="filters">
+        <label>状态筛选：</label>
+        <select id="statusFilter" onchange="loadFeedback()">
+            <option value="">全部</option>
+            <option value="pending">待审核</option>
+            <option value="approved">已通过</option>
+            <option value="rejected">已拒绝</option>
+        </select>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>地区</th>
+                    <th>单位</th>
+                    <th>反映内容</th>
+                    <th>状态</th>
+                    <th>提交时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="feedbackTable">
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:#999;">加载中...</td></tr>
+            </tbody>
+        </table>
+        <div class="pagination" id="pagination"></div>
+    </div>
+</div>
+
+<!-- 审核模态框 -->
+<div class="modal" id="reviewModal">
+    <div class="modal-content">
+        <h3 id="modalTitle">审核操作</h3>
+        <textarea id="reviewComment" placeholder="填写审核意见（可选）..."></textarea>
+        <div class="modal-actions">
+            <button class="btn" style="background:#ddd;color:#333;" onclick="closeModal()">取消</button>
+            <button class="btn btn-approve" id="confirmBtn" onclick="confirmReview()">确认</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 0;
+const limit = 20;
+let currentFeedbackId = null;
+let currentAction = null;
+
+// 加载统计数据
+async function loadStats() {
+    try {
+        const response = await fetch('/api/feedback/list');
+        const data = await response.json();
+        
+        document.getElementById('totalCount').textContent = data.total || 0;
+        document.getElementById('pendingCount').textContent = data.results.filter(f => f.status === 'pending').length;
+        document.getElementById('approvedCount').textContent = data.results.filter(f => f.status === 'approved').length;
+        document.getElementById('rejectedCount').textContent = data.results.filter(f => f.status === 'rejected').length;
+    } catch (err) {
+        console.error('加载统计失败:', err);
+    }
+}
+
+// 加载反馈列表
+async function loadFeedback() {
+    const status = document.getElementById('statusFilter').value;
+    const offset = currentPage * limit;
+    
+    try {
+        let url = `/api/feedback/list?offset=${offset}`;
+        if (status) url += `&status=${status}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        renderTable(data.results);
+        renderPagination(data.total);
+    } catch (err) {
+        console.error('加载反馈失败:', err);
+        document.getElementById('feedbackTable').innerHTML = 
+            '<tr><td colspan="7" style="text-align:center;padding:40px;color:#999;">加载失败，请刷新重试</td></tr>';
+    }
+}
+
+// 渲染表格
+function renderTable(feedbacks) {
+    const tbody = document.getElementById('feedbackTable');
+    
+    if (!feedbacks || feedbacks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = feedbacks.map(f => `
+        <tr>
+            <td>${f.id}</td>
+            <td>${f.city} ${f.district}</td>
+            <td>${f.unit || '-'}</td>
+            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.description}">${f.description}</td>
+            <td><span class="status status-${f.status}">${getStatusText(f.status)}</span></td>
+            <td>${f.submitted_at ? new Date(f.submitted_at).toLocaleString('zh-CN') : '-'}</td>
+            <td>
+                <div class="actions">
+                    ${f.status === 'pending' ? `
+                        <button class="btn btn-approve" onclick="showReviewModal(${f.id}, 'approved')">通过</button>
+                        <button class="btn btn-reject" onclick="showReviewModal(${f.id}, 'rejected')">拒绝</button>
+                    ` : ''}
+                    <button class="btn btn-delete" onclick="deleteFeedback(${f.id})">删除</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// 获取状态文本
+function getStatusText(status) {
+    const map = {'pending': '待审核', 'approved': '已通过', 'rejected': '已拒绝'};
+    return map[status] || status;
+}
+
+// 渲染分页
+function renderPagination(total) {
+    const pages = Math.ceil(total / limit);
+    const container = document.getElementById('pagination');
+    
+    if (pages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < pages; i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i+1}</button>`;
+    }
+    container.innerHTML = html;
+}
+
+// 跳转页面
+function goToPage(page) {
+    currentPage = page;
+    loadFeedback();
+}
+
+// 显示审核模态框
+function showReviewModal(id, action) {
+    currentFeedbackId = id;
+    currentAction = action;
+    
+    const modal = document.getElementById('reviewModal');
+    const title = document.getElementById('modalTitle');
+    const confirmBtn = document.getElementById('confirmBtn');
+    
+    if (action === 'approved') {
+        title.textContent = '通过审核';
+        confirmBtn.textContent = '确认通过';
+        confirmBtn.className = 'btn btn-approve';
+    } else {
+        title.textContent = '拒绝审核';
+        confirmBtn.textContent = '确认拒绝';
+        confirmBtn.className = 'btn btn-reject';
+    }
+    
+    document.getElementById('reviewComment').value = '';
+    modal.style.display = 'block';
+}
+
+// 关闭模态框
+function closeModal() {
+    document.getElementById('reviewModal').style.display = 'none';
+    currentFeedbackId = null;
+    currentAction = null;
+}
+
+// 确认审核
+async function confirmReview() {
+    const comment = document.getElementById('reviewComment').value;
+    
+    try {
+        const response = await fetch('/api/feedback/review', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                id: currentFeedbackId,
+                status: currentAction,
+                comment: comment
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            closeModal();
+            loadFeedback();
+            loadStats();
+        } else {
+            alert('操作失败：' + (result.error || '未知错误'));
+        }
+    } catch (err) {
+        alert('操作失败：网络错误');
+    }
+}
+
+// 删除反馈
+async function deleteFeedback(id) {
+    if (!confirm('确定要删除这条记录吗？此操作不可恢复。')) return;
+    
+    try {
+        const response = await fetch('/api/feedback/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: id})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            loadFeedback();
+            loadStats();
+        } else {
+            alert('删除失败：' + (result.error || '未知错误'));
+        }
+    } catch (err) {
+        alert('删除失败：网络错误');
+    }
+}
+
+// 初始化
+loadStats();
+loadFeedback();
+</script>
+
+</body>
+</html>
