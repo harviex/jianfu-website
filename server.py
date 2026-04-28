@@ -167,17 +167,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = parsed.path
         params = urllib.parse.parse_qs(parsed.query)
         
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
+        # Determine content type and prepare data
+        content_type = 'application/json; charset=utf-8'
+        data = None
         
         if path == '/' or path == '/index.html':
-            self.send_header('Content-Type', 'text/html; charset=utf-8')
-            self.end_headers()
-            with open(os.path.join(os.path.dirname(__file__), 'index.html'), 'rb') as f:
-                self.wfile.write(f.read())
-            return
+            content_type = 'text/html; charset=utf-8'
         elif path == '/api/stats':
             data = get_stats()
         elif path == '/api/notices':
@@ -193,7 +188,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         else:
             data = {'error': 'not found'}
         
-        self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+        # Send response with correct content type
+        self.send_response(200)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        
+        if path == '/' or path == '/index.html':
+            # Serve HTML file
+            with open(os.path.join(os.path.dirname(__file__), 'index.html'), 'rb') as f:
+                self.wfile.write(f.read())
+        elif data is not None:
+            # Send JSON data
+            self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
     
     def log_message(self, format, *args):
         pass  # Suppress logs
