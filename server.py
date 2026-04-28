@@ -199,7 +199,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         pass  # Suppress logs
 
 if __name__ == '__main__':
-    port = 8899
+    port = 3008
     server = http.server.HTTPServer(('0.0.0.0', port), Handler)
     print(f"🚀 Notices API running on http://0.0.0.0:{port}")
     server.serve_forever()
